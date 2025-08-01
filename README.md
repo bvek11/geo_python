@@ -1,1 +1,1 @@
-
+Python codes and shortcuts
