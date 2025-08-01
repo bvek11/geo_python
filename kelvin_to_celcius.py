@@ -3,8 +3,8 @@ import rasterio
 import numpy as np
 
 # Define input and output folders
-input_folder = r"C:\Users\91956\Downloads\UTCI_Heatstress\UTCI_Clipped\2015"
-output_folder = r"C:\Users\91956\Downloads\UTCI_Heatstress\UTCI_Celsius_2015"
+input_folder = r" "
+output_folder = r" "
 
 # Ensure the output folder exists
 os.makedirs(output_folder, exist_ok=True)
