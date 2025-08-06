@@ -1,0 +1,14 @@
+import fiona
+
+def list_layers_in_geopackage(gpkg_path):
+    try:
+        layers = fiona.listlayers(gpkg_path)
+        print("Layers found in GeoPackage:")
+        for layer in layers:
+            print(f" {layer}")
+    except Exception as e:
+        print(f"Error reading GeoPackage: {e}")
+
+# Example usage
+geopackage_path = r" "  # Replace with your .gpkg file path
+list_layers_in_geopackage(geopackage_path)
