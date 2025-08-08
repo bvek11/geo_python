@@ -12,3 +12,6 @@ def list_layers_in_geopackage(gpkg_path):
 # Example usage
 geopackage_path = r" "  # Replace with your .gpkg file path
 list_layers_in_geopackage(geopackage_path)
+
+
+
