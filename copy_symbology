@@ -1,0 +1,39 @@
+import arcpy
+
+aprx = arcpy.mp.ArcGISProject("CURRENT")
+m = aprx.activeMap
+
+source = m.listLayers("Layer1")[0]
+target = m.listLayers("Layer2")[0]
+
+src_cim = source.getDefinition('V2')
+tgt_cim = target.getDefinition('V2')
+
+# Build {value: symbol} dictionary from source layer
+src_symbols = {}
+for group in src_cim.renderer.groups:
+    for cls in group.classes:
+        for v in cls.values:
+            for fv in v.fieldValues:
+                src_symbols[fv] = cls.symbol
+
+# Replace symbols in target where the value matches
+replaced, kept = 0, 0
+for group in tgt_cim.renderer.groups:
+    for cls in group.classes:
+        matched = False
+        for v in cls.values:
+            for fv in v.fieldValues:
+                if fv in src_symbols:
+                    cls.symbol = src_symbols[fv]
+                    matched = True
+                    break
+            if matched:
+                break
+        if matched:
+            replaced += 1
+        else:
+            kept += 1
+
+target.setDefinition(tgt_cim)
+print(f"Replaced: {replaced} | Kept original: {kept}")
