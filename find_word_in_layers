@@ -1,0 +1,113 @@
+"""
+find_word_in_layers.py
+----------------------
+Search every layer in the active ArcGIS Pro map for a word and report
+which layer (number + name) and which column contains it.
+
+How to use:
+    1. Open your project in ArcGIS Pro.
+    2. Open the Python window (Analysis tab > Python).
+    3. Paste this script or run it as:  exec(open(r"path\to\find_word_in_layers.py").read())
+    4. Edit SEARCH_WORD below before running.
+"""
+
+import arcpy
+import csv
+
+
+def find_word_in_layers(search_word, case_sensitive=False, output_csv=None):
+    """
+    Scan every feature layer / standalone table in the active map and look
+    for `search_word` inside any text (String) field.
+
+    Returns a list of dicts: layer_number, layer_name, column, match_count
+    """
+    aprx = arcpy.mp.ArcGISProject("CURRENT")
+    active_map = aprx.activeMap
+    if active_map is None:
+        raise RuntimeError("No active map. Open a map in ArcGIS Pro and try again.")
+
+    layers = active_map.listLayers()
+    results = []
+    needle = search_word if case_sensitive else search_word.lower()
+
+    print(f"\nSearching for: '{search_word}'  (case_sensitive={case_sensitive})")
+    print(f"Scanning {len(layers)} layer(s) in map '{active_map.name}'...\n")
+
+    header = f"{'#':<4} {'Layer Name':<35} {'Column':<25} {'Matches':>8}"
+    print(header)
+    print("-" * len(header))
+
+    for idx, layer in enumerate(layers, start=1):
+        try:
+            # Skip group layers, basemaps, rasters, etc. - we only want tabular data
+            if layer.isGroupLayer or layer.isBasemapLayer:
+                continue
+            if not (layer.isFeatureLayer or layer.supports("DATASOURCE")):
+                continue
+
+            desc = arcpy.Describe(layer)
+            if desc.dataType not in ("FeatureLayer", "FeatureClass",
+                                     "Table", "TableView"):
+                continue
+
+            # Only text fields make sense to search for a "word"
+            text_fields = [f.name for f in arcpy.ListFields(layer)
+                           if f.type == "String"]
+            if not text_fields:
+                continue
+
+            for field in text_fields:
+                match_count = 0
+                try:
+                    with arcpy.da.SearchCursor(layer, [field]) as cursor:
+                        for row in cursor:
+                            value = row[0]
+                            if value is None:
+                                continue
+                            hay = value if case_sensitive else value.lower()
+                            if needle in hay:
+                                match_count += 1
+                except Exception as e:
+                    print(f"  ! Could not read {layer.name}.{field}: {e}")
+                    continue
+
+                if match_count > 0:
+                    results.append({
+                        "layer_number": idx,
+                        "layer_name": layer.name,
+                        "column": field,
+                        "match_count": match_count,
+                    })
+                    print(f"{idx:<4} {layer.name[:34]:<35} "
+                          f"{field[:24]:<25} {match_count:>8}")
+
+        except Exception as e:
+            print(f"  ! Skipped layer '{layer.name}': {e}")
+
+    print("-" * len(header))
+    if results:
+        print(f"\nFound matches in {len(results)} field(s).")
+    else:
+        print("\nNo matches found.")
+
+    if output_csv and results:
+        with open(output_csv, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["layer_number", "layer_name", "column", "match_count"]
+            )
+            writer.writeheader()
+            writer.writerows(results)
+        print(f"Results saved to: {output_csv}")
+
+    return results
+
+
+# -------------------- EDIT THESE --------------------
+SEARCH_WORD = "Boulder"     # the word to look for
+CASE_SENSITIVE = False             # True to match exact casing
+OUTPUT_CSV = None                  # e.g. r"C:\temp\search_results.csv" or None
+# ----------------------------------------------------
+
+if __name__ == "__main__":
+    find_word_in_layers(SEARCH_WORD, CASE_SENSITIVE, OUTPUT_CSV)
